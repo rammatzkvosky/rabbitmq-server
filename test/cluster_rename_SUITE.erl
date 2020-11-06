@@ -242,14 +242,21 @@ stop_rename_start(Config, Nodename, Map) ->
     NodeRenameConfigIdx = rabbit_ct_broker_helpers:nodename_to_index(Config, Nodename),
     NodeIdxsToCheck = [N || N <- NodeIndexes, N =/= NodeRenameConfigIdx],
     ok = rabbit_ct_broker_helpers:stop_node(Config, Nodename),
+    P0 = fun(NodeIdx) ->
+             ExpectedRunningNodeCount =:= length(cluster_members_online(Config, NodeIdx))
+         end,
+    C0 = fun() ->
+             lists:all(P0, NodeIdxsToCheck)
+         end,
+    ok = rabbit_ct_helpers:await_condition(C0, 30000),
     Config1 = rename_node(Config, Nodename, Map),
-    C = fun() ->
-            P = fun(NodeIdx) ->
-                    ExpectedRunningNodeCount =:= length(cluster_members_online(Config1, NodeIdx))
-                end,
-            lists:all(P, NodeIdxsToCheck)
-        end,
-    ok = rabbit_ct_helpers:await_condition(C, 30000),
+    P1 = fun(NodeIdx) ->
+             ExpectedRunningNodeCount =:= length(cluster_members_online(Config1, NodeIdx))
+         end,
+    C1 = fun() ->
+             lists:all(P1, NodeIdxsToCheck)
+         end,
+    ok = rabbit_ct_helpers:await_condition(C1, 30000),
     ok = rabbit_ct_broker_helpers:start_node(Config1, Nodename),
     Config1.
 
